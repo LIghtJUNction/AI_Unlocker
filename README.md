@@ -17,7 +17,7 @@
 
 ## 第一部分
 
-### Model #引入模型 从(ollama)[https://github.com/ollama/ollama] 开始
+### Model #引入模型 从[ollama](https://github.com/ollama/ollama) 开始
 
 ## 第二部分
 
