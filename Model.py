@@ -1,21 +1,24 @@
 import datetime
 import os
+import random
 import requests
 import json
-from collections  import  OrderedDict  # 用于索引文件
+
+
 
 class OllamaModel:
     def __init__(self, host="127.0.0.1", port=11434):
         self.base_url = f"http://{host}:{port}/api"
         self.name = self.list_local_models()[0]       # 模型名字
- 
-    def generate_completion(self, prompt, stream=False):  # 已测试,功能正常 6/27/2024
+    
+    def generate_completion(self, prompt, stream=False,system="默认使用中文回答,且尽量精简",):  # 已测试,功能正常 6/27/2024
         url = f"{self.base_url}/generate"
         headers = {"Content-Type": "application/json"}
-        payload = {"model": self, "prompt": prompt, "stream": stream}
+        payload = {"model": self.name, "prompt": prompt, "stream": stream,"system":system,"option":{"seed":random(1,100)}}
 
         try:
             if stream:
+                full_response = ""  # 初始化一个空字符串用于累积响应部分
                 with requests.post(url, json=payload, headers=headers, stream=True) as response:
                     response.raise_for_status()
                     for raw_response in response.iter_lines():
@@ -23,18 +26,50 @@ class OllamaModel:
                             try:
                                 data = json.loads(raw_response.decode('utf-8'))
                                 response_part = data.get('response', '')
+                                full_response += response_part  # 累积响应部分
                                 print(response_part, end='', flush=True)
                             except json.JSONDecodeError:
                                 print(f"Failed to parse JSON object: {raw_response}")
+                return full_response  # 返回完整的响应
             else:
-                response = requests.post(url, json=payload, headers=headers)
+                response = requests.post(url, json=payload, headers=headers,stream=False)
                 response.raise_for_status()
                 data = response.json()
                 return data.get('response', '')
 
-        except requests.RequestException as e:
-            print(f"An error occurred: {e}")
-   
+        except requests.exceptions.RequestException as e:
+            print(f"Request failed: {e}")
+            return ""
+    
+    def chat(self,messages,stream=True):
+        url = f"{self.base_url}/chat"
+        headers = {"Content-Type": "application/json"}
+        payload = {"model":self.name,"messages":messages}
+        try:
+            if stream:
+                full_response = ""  # 初始化一个空字符串用于累积响应部分
+                with requests.post(url, json=payload, headers=headers, messages=messages ,stream=True) as response:
+                    response.raise_for_status()
+                    for raw_response in response.iter_lines():
+                        if raw_response:
+                            try:
+                                data = json.loads(raw_response.decode('utf-8'))
+                                response_part = data.get('response', '')
+                                full_response += response_part  # 累积响应部分
+                                print(response_part, end='', flush=True)
+                            except json.JSONDecodeError:
+                                print(f"Failed to parse JSON object: {raw_response}")
+
+                return full_response  # 返回完整的响应
+            else:
+                response = requests.post(url, json=payload, headers=headers,stream=False)
+                response.raise_for_status()
+                data = response.json()
+                return data.get('response', '')
+        except requests.exceptions.RequestException as e:
+            print(f"Request failed: {e}")
+            return ""
+        
     def list_running_model(self): # 已测试功能正常 6/27/2024
         url = f"{self.base_url}/ps"
         try:
@@ -135,6 +170,16 @@ class OllamaModel:
             print(f"Model {self.name} created successfully.")
         except requests.RequestException as e:
             print(f"An error occurred while creating the model: {e}")
+
+    def add_message(self, role, content):
+        message = {"role": role, "content": content}
+        self.history.append(message)
+        # 保持聊天记录不超过max_length条
+        if len(self.history) > self.max_length:
+            self.history.pop(0)
+
+    def get_history(self):
+        return json.dumps(self.history, indent=4) 
 
 class EmbeddingGenerator:    # 保存embedding文件 并建立索引文件 和数据调用器
     def __init__(self, base_url, model_name, index_file="index.json"):
@@ -282,7 +327,6 @@ print(model_info)
 
 """
 
-ollama_model = OllamaModel()
+llama = OllamaModel()
 
-print(ollama_model.list_running_model())
-
+llama.generate_completion("你好啊",True)
