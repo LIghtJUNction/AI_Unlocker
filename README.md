@@ -11,7 +11,8 @@
 > # 名词解释
 > AI_Unlocker指代AI_Unlocker.py
 > Model 模型对象
-> trick_x 手段x
+> 其他...
+>
 > ```
 
 ## 第一部分
