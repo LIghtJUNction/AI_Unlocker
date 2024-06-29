@@ -3,15 +3,34 @@ import os
 import random
 import requests
 import json
+"""
+快速介绍 这是用于接入ollama 模型的一个
+类: OllamaModel
+方法如下:
+1.产生单个回复  参数为prompt 其他默认即可 stream为false表示不及时返回大模型的生成,也就是官方文档的非流式,返回最终结果,true也支持返回最终结果
+
+2.chat方法,和第一个类似,但是支持聊天历史记录,适合连续对话
+
+3.列出现在运行的模型
+
+4.列出本地所有模型
+
+5.显示当前运行模型的信息
+
+6.复制一份当前模型的副本(也可以传入你要复制的模型名)
+
+7.删除当前(默认)运行的模型
 
 
+
+"""
 
 class OllamaModel:
     def __init__(self, host="127.0.0.1", port=11434):
         self.base_url = f"http://{host}:{port}/api"
         self.name = self.list_local_models()[0]       # 模型名字
-    
-    def generate_completion(self, prompt, stream=False,system="默认使用中文回答,且尽量精简",):  # 已测试,功能正常 6/27/2024
+        
+    def generate_completion(self, prompt, stream=True,system="默认使用中文回答,且尽量精简",):  # 已测试,功能正常 6/27/2024
         url = f"{self.base_url}/generate"
         headers = {"Content-Type": "application/json"}
         payload = {"model": self.name, "prompt": prompt, "stream": stream,"system":system,"option":{"seed":random(1,100)}}
@@ -101,9 +120,12 @@ class OllamaModel:
             print(f"An error occurred while listing the models: {e}")
             return []
 
-    def show_model_info(self):  #已测试正常 6/27/2024
+    def show_model_info(self,name):  #已测试正常 6/27/2024
+        if name == None:
+            name = self.name
+        
         url = f"{self.base_url}/show"
-        payload = {"name": self.name}
+        payload = {"name": name}
         try:
             response = requests.post(url, json=payload)  # 使用 params 参数传递查询参数
             response.raise_for_status()
@@ -113,10 +135,14 @@ class OllamaModel:
             print(f"An error occurred while retrieving the model information: {e}")
             return {}
     
-    def copy_model(self, source_model): # 不打算测试
+    def copy_model(self, name,NewName): # 不打算测试
+        if name == None:
+            name = self.name
+        if NewName == None:
+            return print("copy_model(self, name,NewName),你需要输入拷贝后的新文件名!")
         url = f"{self.base_url}/copy"
         headers = {"Content-Type": "application/json"}
-        payload = {"source_model": source_model, "destination_model": self.name}
+        payload = {"source": name, "destination": name}
 
         try:
             response = requests.post(url, json=payload, headers=headers)
@@ -125,17 +151,20 @@ class OllamaModel:
         except requests.RequestException as e:
             print(f"An error occurred while copying the model: {e}")
 
-    def delete_model(self): # 不打算测试
+    def delete_model(self,name): # 不打算测试
+        if name == None:
+            name = self.name
+        
         url = f"{self.base_url}/delete"
         try:
             response = requests.delete(url)
             response.raise_for_status()
-            print(f"Model {self.name} deleted successfully.")
+            print(f"Model {name} deleted successfully.")
         except requests.RequestException as e:
             print(f"An error occurred while deleting the model: {e}")
     
     def pull_model(self, name): # 不打算测试 在线下载一个模型用的
-
+       
         url = f"{self.base_url}/pull"
         headers = {"Content-Type": "application/json"}
         payload = {"name": name}
@@ -148,6 +177,9 @@ class OllamaModel:
             print(f"An error occurred while pulling the model: {e}")
 
     def push_model(self, name): #不打算测试
+        if name == None:
+            name = self.name
+        
         url = f"{self.base_url}/push"
         headers = {"Content-Type": "application/json"}
         payload = {"name": name}
@@ -159,17 +191,20 @@ class OllamaModel:
         except requests.RequestException as e:
             print(f"An error occurred while pushing the model: {e}")
     
-    def create_model(self, model_config):  # 不打算测试
+    def create_model(self, modelfile):  # 不打算测试
+        
+        # 示例 modelfile="FROM llama3\nSYSTEM You are mario from Super Mario Bros."
         url = f"{self.base_url}/creat"
         headers = {"Content-Type": "application/json"}
-        payload = {"model": self.name, **model_config}
-
+        payload = {"model": self.name, "modefile":modelfile}
         try:
             response = requests.post(url, json=payload, headers=headers)
             response.raise_for_status()
-            print(f"Model {self.name} created successfully.")
+            print(f"Model created successfully.")
         except requests.RequestException as e:
-            print(f"An error occurred while creating the model: {e}")
+            print(f"An error occurred while creating the model: {e},建议使用本功能前检查一下Model.py文件ollamamodel类,本方法没有测试")
+
+# 以下用于添加聊天历史记录(message) 供chat()方法使用
 
     def add_message(self, role, content):
         message = {"role": role, "content": content}
